@@ -1,10 +1,28 @@
 # its_4_s3cr3_t
 
-Una caja extensible de pequeñas herramientas personales ejecutadas desde Python.
-La primera herramienta cifra y descifra palabras o frases con una contraseña que
-solo tú conoces.
+Caja defensiva y extensible de pequeñas herramientas personales de
+ciberseguridad. Todo se ejecuta localmente desde Python y las funciones que
+reciben secretos no los envían por internet.
 
-## Inicio rápido
+## Herramientas incluidas
+
+1. Cifrado autenticado de palabras o frases en formato propio `S4S1`.
+2. Descifrado y detección de contraseñas incorrectas o datos manipulados.
+3. Generador criptográfico de contraseñas.
+4. Evaluación local de fortaleza mediante `zxcvbn`.
+5. Cálculo de hashes SHA-256, SHA-512 y BLAKE2b.
+6. Verificación de integridad contra una huella conocida.
+7. Creación de secretos y generación de códigos TOTP/2FA con `PyOTP`.
+8. Escáner local de credenciales expuestas que nunca imprime el secreto.
+9. Análisis estático de URLs sospechosas sin visitar el destino.
+
+## Ejecutable para Windows
+
+La sección **Releases** de GitHub contiene `its_4_s3cr3_t-windows-x64.exe` y su
+archivo SHA-256. El ejecutable no requiere instalar Python. Comprueba siempre su
+huella antes de abrirlo.
+
+## Instalación desde el código
 
 Requiere Python 3.10 o superior.
 
@@ -15,48 +33,53 @@ python -m pip install -e .
 python run.py
 ```
 
-En Linux o macOS, la activación del entorno es:
+En Linux o macOS, activa el entorno con `source .venv/bin/activate`.
 
-```bash
-source .venv/bin/activate
-```
+## Comandos directos
 
-También puedes invocar directamente cada operación:
-
-```powershell
+```text
 python run.py encrypt
 python run.py decrypt
+python run.py generate-password --length 32
+python run.py password-strength
+python run.py hash-file --file archivo.zip --algorithm sha256
+python run.py verify-hash --file archivo.zip --expected HUELLA
+python run.py totp
+python run.py scan-secrets --path ./mi-proyecto
+python run.py inspect-url --url https://ejemplo.com
 python run.py list
 ```
 
-La aplicación pide la frase y la contraseña de forma interactiva. El resultado
-del cifrado es un texto portable con prefijo `S4S1.` que puedes guardar donde
-prefieras. Para recuperarlo necesitas tanto ese texto como la misma contraseña.
+Las contraseñas y semillas TOTP no se aceptan como argumentos para evitar que
+queden en el historial o en la lista de procesos. `scan-secrets` devuelve código
+de salida `1` si encuentra posibles credenciales, por lo que también puede usarse
+en automatizaciones defensivas.
 
-## Diseño de seguridad
+## Diseño de seguridad del cifrado
 
 El contenedor `S4S1` es propio de este proyecto, pero la criptografía no se
 reinventa:
 
 - `scrypt` deriva una clave desde tu contraseña usando una sal aleatoria.
-- `AES-256-GCM` cifra el contenido y comprueba que nadie lo haya modificado.
-- Cada cifrado usa sal y nonce nuevos, por lo que la misma frase produce
-  resultados distintos.
-- La contraseña nunca se guarda dentro del resultado ni en el repositorio.
+- `AES-256-GCM` cifra y autentica el contenido.
+- Cada operación usa sal y nonce nuevos, así que la misma frase produce
+  resultados diferentes.
+- La contraseña nunca se guarda en el resultado ni en el repositorio.
 
-No existe recuperación de contraseña. Haz copias del texto cifrado y conserva
-la contraseña en un lugar separado. Para datos de alto riesgo o uso compartido,
-prefiere un gestor de contraseñas auditado.
+No existe recuperación de contraseña. Conserva el resultado y la contraseña por
+separado. Para información crítica o compartida, usa un gestor de contraseñas
+auditado.
 
-## Añadir herramientas
-
-El lanzador vive en `secret_tools/cli.py` y el catálogo en
-`secret_tools/registry.py`. Cada nueva utilidad puede registrarse con una clave,
-nombre, descripción y función ejecutora, sin mezclar su lógica con las demás.
-
-## Pruebas
+## Desarrollo y pruebas
 
 ```powershell
+python -m pip install -e ".[build]"
 python -m unittest discover -s tests -v
+python -m PyInstaller --onefile --console --clean --name its_4_s3cr3_t run.py
 ```
+
+GitHub Actions ejecuta las pruebas en Windows y Linux. Cada etiqueta `v*` genera
+y publica automáticamente el ejecutable de Windows junto con su SHA-256.
+
+Consulta [SECURITY.md](SECURITY.md) antes de añadir funciones nuevas.
 

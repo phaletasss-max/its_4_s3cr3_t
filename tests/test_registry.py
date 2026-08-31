@@ -1,5 +1,6 @@
 import unittest
 
+from secret_tools.cli import build_registry
 from secret_tools.registry import Tool, ToolRegistry
 
 
@@ -20,7 +21,12 @@ class ToolRegistryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             registry.register(Tool("x", "Dos", "", lambda: None))
 
+    def test_application_registers_all_tools_in_menu_order(self) -> None:
+        self.assertEqual(
+            tuple(tool.key for tool in build_registry().all()),
+            tuple(str(number) for number in range(1, 10)),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -11,7 +11,7 @@ class Tool:
     key: str
     name: str
     description: str
-    run: Callable[[], None]
+    run: Callable[[], object]
 
 
 class ToolRegistry:
@@ -28,4 +28,3 @@ class ToolRegistry:
 
     def all(self) -> tuple[Tool, ...]:
         return tuple(self._tools.values())
-

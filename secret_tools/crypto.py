@@ -16,6 +16,8 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
+from .errors import ToolError
+
 _PREFIX = "S4S1."
 _MAGIC = b"S4S"
 _VERSION = 1
@@ -29,7 +31,7 @@ _MAX_TOKEN_BYTES = 10 * 1024 * 1024
 _HEADER = struct.Struct(f">3sBBB{_SALT_SIZE}s{_NONCE_SIZE}s")
 
 
-class SecretCipherError(ValueError):
+class SecretCipherError(ToolError):
     """Error seguro y presentable al usuario durante cifrado o descifrado."""
 
 
@@ -129,4 +131,3 @@ def decrypt_text(token: str, passphrase: str) -> str:
         raise SecretCipherError(
             "No se pudo descifrar: la contraseña es incorrecta o los datos cambiaron."
         ) from exc
-

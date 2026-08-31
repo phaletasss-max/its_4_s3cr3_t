@@ -4,17 +4,22 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "its-4-s3cr3-t"
-version = "0.1.0"
-description = "Caja de pequeñas herramientas personales, empezando por cifrado de texto."
+version = "0.2.0"
+description = "Caja defensiva de pequeñas herramientas personales de ciberseguridad."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "cryptography>=44,<51",
+    "pyotp>=2.10,<3",
+    "zxcvbn>=4.5,<5",
 ]
+
+[project.optional-dependencies]
+build = ["pyinstaller>=6.22,<7"]
+audit = ["pip-audit>=2.10,<3"]
 
 [project.scripts]
 secret-tools = "secret_tools.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["secret_tools*"]
-
