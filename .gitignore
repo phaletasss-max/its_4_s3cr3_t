@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+.venv/
+venv/
+dist/
+build/
+.idea/
+.vscode/
+
+# Nunca versionar secretos o archivos locales de datos.
+.env
+*.secret
+secrets/
+
