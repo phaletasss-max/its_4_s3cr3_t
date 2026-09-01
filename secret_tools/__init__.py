@@ -3,4 +3,4 @@
 from .crypto import SecretCipherError, decrypt_text, encrypt_text
 
 __all__ = ["SecretCipherError", "decrypt_text", "encrypt_text"]
-__version__ = "0.2.0"
+__version__ = "0.2.1"
