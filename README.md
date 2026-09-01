@@ -25,6 +25,8 @@ o cancelar una operación:
 6. Calcular y verificar hashes SHA-256, SHA-512 y BLAKE2b.
 7. Buscar credenciales expuestas sin mostrar su valor.
 8. Analizar señales sospechosas de una URL sin visitarla.
+9. **Bóveda SQLite:** guardar, listar, recuperar, renombrar y eliminar registros
+   cifrados; comprobar integridad y crear backups.
 
 ## Ejecutable para Windows
 
@@ -69,6 +71,45 @@ Las contraseñas y semillas TOTP no se aceptan como argumentos para evitar que
 queden en el historial o en la lista de procesos. `scan-secrets` devuelve código
 de salida `1` si encuentra posibles credenciales, por lo que también puede usarse
 en automatizaciones defensivas.
+
+## Bóveda SQLite local
+
+Abre `python run.py` y selecciona **11. Bóveda SQLite**. La base se crea de forma
+predeterminada en:
+
+```text
+%USERPROFILE%\.its_4_s3cr3_t\vault.sqlite3   # Windows
+~/.its_4_s3cr3_t/vault.sqlite3               # Linux/macOS
+```
+
+La bóveda guarda únicamente tokens `S4S1/S4S2`, su formato, una etiqueta visible
+y fechas UTC. El texto original y la contraseña no se escriben en SQLite. Las
+etiquetas **no están cifradas**, así que usa nombres neutros.
+
+El submenú permite:
+
+- cifrar y guardar un texto en una sola operación;
+- validar e importar un token cifrado anterior;
+- listar o buscar metadatos por etiqueta sin imprimir tokens;
+- recuperar un registro solicitando su contraseña;
+- renombrar o eliminar con confirmación explícita;
+- ejecutar `PRAGMA integrity_check`, verificar huellas SHA-256 de los tokens y
+  crear backups sin sobrescribir archivos.
+
+Las huellas detectan alteraciones accidentales del archivo; no protegen frente a
+alguien capaz de modificar a la vez el token y su huella. Al recuperar el texto,
+la autenticación AES-GCM de `S4S2` sigue siendo la comprobación criptográfica.
+
+Puedes cambiar el directorio antes de iniciar la aplicación:
+
+```powershell
+$env:ITS_4_S3CR3_T_DATA_DIR = "D:\mis-datos-seguros"
+python run.py
+```
+
+El esquema básico y versionado está en
+[`secret_tools/schema.sql`](secret_tools/schema.sql). Todas las operaciones que
+reciben datos del usuario emplean parámetros SQL; no concatenan consultas.
 
 ## Compresión y longitud
 
@@ -126,7 +167,7 @@ posterior para abrirse. Esta versión sigue abriendo todos los `S4S1`, `S4S2` y
 ```powershell
 python -m pip install -e ".[build]"
 python -m unittest discover -s tests -v
-python -m PyInstaller --onefile --console --clean --name its_4_s3cr3_t run.py
+python -m PyInstaller --onefile --console --clean --collect-data secret_tools --name its_4_s3cr3_t run.py
 ```
 
 GitHub Actions ejecuta las pruebas en Windows y Linux. Cada etiqueta `v*` genera

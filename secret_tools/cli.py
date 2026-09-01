@@ -16,6 +16,7 @@ from .otp import create_totp_secret, generate_totp_code
 from .passwords import analyze_password, generate_password
 from .registry import Tool, ToolRegistry
 from .secret_scanner import ScanReport, scan_for_secrets
+from .storage import Vault
 from .url_inspector import inspect_url
 
 _MIN_PASSWORD_LENGTH = 8
@@ -257,6 +258,118 @@ def _inspect_url_interactive(url: str | None = None) -> None:
     print("El análisis es local y no visita la URL; un resultado limpio no demuestra que sea segura.")
 
 
+def _ask_record_id(prompt: str = "ID del registro: ") -> int:
+    raw_value = input(prompt).strip()
+    try:
+        record_id = int(raw_value)
+    except ValueError as exc:
+        raise ToolError("El ID debe ser un número entero positivo.") from exc
+    if record_id < 1:
+        raise ToolError("El ID debe ser un número entero positivo.")
+    return record_id
+
+
+def _show_vault_records(vault: Vault, query: str | None = None) -> None:
+    records = vault.search_records(query) if query is not None else vault.list_records()
+    if not records:
+        if query is None:
+            print("\nLa bóveda todavía no tiene registros.")
+        else:
+            print("\nNo se encontraron registros con esa etiqueta.")
+        return
+
+    print("\nRegistros (el contenido cifrado no se muestra):\n")
+    for record in records:
+        print(
+            f"{record.id}. {record.label} — {record.token_format} — "
+            f"{record.created_at} — {record.token_length} caracteres"
+        )
+
+
+def _vault_interactive(path: str | Path | None = None) -> None:
+    vault = Vault(path)
+    actions = {
+        "1": "Cifrar y guardar texto nuevo",
+        "2": "Importar un token S4S existente",
+        "3": "Listar registros",
+        "4": "Buscar por etiqueta",
+        "5": "Recuperar un registro",
+        "6": "Renombrar un registro",
+        "7": "Eliminar un registro",
+        "8": "Comprobar integridad y huellas de registros",
+        "9": "Crear backup SQLite",
+    }
+
+    while True:
+        print(f"\nBóveda SQLite local: {vault.path}\n")
+        for key, label in actions.items():
+            print(f"{key}. {label}")
+        print("0. Volver al menú principal")
+        choice = input("\nElige una opción de bóveda: ").strip()
+        if choice == "0":
+            return
+
+        try:
+            if choice == "1":
+                label = input("Etiqueta visible (no escribas información sensible): ")
+                plaintext = input("Texto que quieres cifrar y guardar: ")
+                token = encrypt_text(plaintext, _read_new_passphrase())
+                record_id = vault.add_record(label, token)
+                print(f"\nGuardado como registro {record_id}; la contraseña no se almacenó.")
+            elif choice == "2":
+                label = input("Etiqueta visible (no escribas información sensible): ")
+                token = input("Pega el token S4S1/S4S2: ").strip()
+                decrypt_text(token, _read_passphrase("Contraseña para validar el token: "))
+                record_id = vault.add_record(label, token)
+                print(f"\nToken validado y guardado como registro {record_id}.")
+            elif choice == "3":
+                _show_vault_records(vault)
+            elif choice == "4":
+                query = input("Texto contenido en la etiqueta: ")
+                _show_vault_records(vault, query)
+            elif choice == "5":
+                token = vault.get_token(_ask_record_id())
+                plaintext = decrypt_text(token, _read_passphrase())
+                print("\nTexto recuperado:\n")
+                print(plaintext)
+            elif choice == "6":
+                record_id = _ask_record_id()
+                new_label = input("Nueva etiqueta visible: ")
+                vault.rename_record(record_id, new_label)
+                print(f"\nRegistro {record_id} renombrado.")
+            elif choice == "7":
+                record_id = _ask_record_id()
+                confirmation = input(
+                    f"Escribe ELIMINAR para borrar definitivamente el registro {record_id}: "
+                ).strip()
+                if confirmation != "ELIMINAR":
+                    print("\nEliminación cancelada.")
+                    continue
+                vault.delete_record(record_id)
+                print(f"\nRegistro {record_id} eliminado de la bóveda.")
+            elif choice == "8":
+                sqlite_ok = vault.integrity_check()
+                changed_ids = vault.changed_record_ids() if sqlite_ok else ()
+                if not sqlite_ok:
+                    print("\nSQLite detectó problemas de integridad.", file=sys.stderr)
+                elif changed_ids:
+                    identifiers = ", ".join(str(record_id) for record_id in changed_ids)
+                    print(
+                        f"\nLas huellas no coinciden en los registros: {identifiers}.",
+                        file=sys.stderr,
+                    )
+                else:
+                    print("\nSQLite y las huellas de todos los tokens están íntegras.")
+            elif choice == "9":
+                raw_path = input("Ruta del backup [automática]: ").strip().strip('"')
+                backup_path = vault.backup(raw_path or None)
+                print(f"\nBackup creado en: {backup_path}")
+            else:
+                print("\nOpción de bóveda desconocida.", file=sys.stderr)
+        except ToolError as exc:
+            print(f"\nError: {exc}", file=sys.stderr)
+
+
 def build_registry() -> ToolRegistry:
     registry = ToolRegistry()
     tools = (
@@ -329,6 +442,13 @@ def build_registry() -> ToolRegistry:
             "Busca señales sospechosas sin abrir la dirección.",
             _inspect_url_interactive,
             "Archivos y análisis",
+        ),
+        Tool(
+            "11",
+            "Bóveda SQLite",
+            "Guarda y recupera historial cifrado con backups locales.",
+            _vault_interactive,
+            "Almacenamiento local",
         ),
     )
     for tool in tools:

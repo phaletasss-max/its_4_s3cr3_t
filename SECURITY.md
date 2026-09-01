@@ -10,8 +10,15 @@ persistencia, evasión ni escaneo de sistemas remotos.
 - Las contraseñas y secretos TOTP se solicitan con entrada oculta.
 - El escáner reporta archivo, línea y tipo, pero nunca imprime la credencial.
 - No guardes contraseñas, semillas TOTP o archivos `.secret` en Git.
-- `CZ1` solo comprime y codifica: no ofrece confidencialidad. Usa `S4S2` para
+- `CZ1/CZ2` solo comprimen y codifican: no ofrecen confidencialidad. Usa `S4S2` para
   ocultar contenido con contraseña.
+- La bóveda SQLite guarda tokens cifrados, nunca contraseñas ni texto original.
+  Sus etiquetas y fechas sí son metadatos visibles para quien acceda al archivo.
+- Las huellas SHA-256 de la bóveda detectan cambios accidentales, no a un atacante
+  que pueda reemplazar tanto el token como su huella. `S4S2` autentica el contenido
+  cifrado con AES-GCM al intentar recuperarlo.
+- Los backups contienen la misma información que la bóveda: protégelos y no los
+  sincronices a repositorios públicos.
 
 El escáner y el analizador de URLs son heurísticos: pueden tener falsos positivos
 y no sustituyen una auditoría profesional. Un resultado sin hallazgos no prueba

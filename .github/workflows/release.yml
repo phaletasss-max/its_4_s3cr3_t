@@ -30,6 +30,7 @@ jobs:
       - name: Build executable
         run: >-
           python -m PyInstaller --onefile --console --clean
+          --collect-data secret_tools
           --name its_4_s3cr3_t-windows-x64 run.py
       - name: Smoke test executable
         run: .\dist\its_4_s3cr3_t-windows-x64.exe list
