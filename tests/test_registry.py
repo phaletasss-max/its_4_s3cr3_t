@@ -24,7 +24,7 @@ class ToolRegistryTests(unittest.TestCase):
     def test_application_registers_all_tools_in_menu_order(self) -> None:
         self.assertEqual(
             tuple(tool.key for tool in build_registry().all()),
-            tuple(str(number) for number in range(1, 10)),
+            tuple(str(number) for number in range(1, 12)),
         )
 
 

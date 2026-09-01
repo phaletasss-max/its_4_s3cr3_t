@@ -6,7 +6,7 @@ reciben secretos no los envían por internet.
 
 ## Herramientas incluidas
 
-1. Cifrado autenticado de palabras o frases en formato propio `S4S1`.
+1. Cifrado compacto autenticado en formato `S4S2`, compatible con `S4S1`.
 2. Descifrado y detección de contraseñas incorrectas o datos manipulados.
 3. Generador criptográfico de contraseñas.
 4. Evaluación local de fortaleza mediante `zxcvbn`.
@@ -15,6 +15,8 @@ reciben secretos no los envían por internet.
 7. Creación de secretos y generación de códigos TOTP/2FA con `PyOTP`.
 8. Escáner local de credenciales expuestas que nunca imprime el secreto.
 9. Análisis estático de URLs sospechosas sin visitar el destino.
+10. Compresión DEFLATE + codificación Base85 en formato `CZ1`.
+11. Restauración exacta de textos compactos `CZ1`.
 
 ## Ejecutable para Windows
 
@@ -47,6 +49,8 @@ python run.py verify-hash --file archivo.zip --expected HUELLA
 python run.py totp
 python run.py scan-secrets --path ./mi-proyecto
 python run.py inspect-url --url https://ejemplo.com
+python run.py compact
+python run.py expand
 python run.py list
 ```
 
@@ -55,13 +59,30 @@ queden en el historial o en la lista de procesos. `scan-secrets` devuelve códig
 de salida `1` si encuentra posibles credenciales, por lo que también puede usarse
 en automatizaciones defensivas.
 
+## Compresión y longitud
+
+`compact` comprime el texto con DEFLATE y codifica el resultado en Base85. La
+salida comienza con `CZ1.` y puede copiarse como una sola línea. La aplicación
+muestra la longitud inicial, final y el porcentaje ahorrado.
+
+Base85 puede incluir símbolos especiales de terminal. Para restaurar o descifrar,
+es más seguro abrir el menú con `python run.py` y pegar allí el token, en lugar
+de pasarlo como argumento.
+
+La reducción depende del contenido: 230 caracteres repetitivos pueden quedar en
+menos de 50, mientras que datos aleatorios o ya comprimidos pueden crecer. No
+existe una forma sin pérdida de garantizar que todo texto de 201 caracteres se
+reduzca a 50 o 150. `CZ1` **no cifra**; cualquiera puede restaurar su contenido.
+
 ## Diseño de seguridad del cifrado
 
-El contenedor `S4S1` es propio de este proyecto, pero la criptografía no se
-reinventa:
+El contenedor actual `S4S2` es propio del proyecto y puede abrir tokens `S4S1`
+anteriores, pero la criptografía no se reinventa:
 
 - `scrypt` deriva una clave desde tu contraseña usando una sal aleatoria.
 - `AES-256-GCM` cifra y autentica el contenido.
+- DEFLATE comprime antes de cifrar solo cuando realmente reduce el tamaño.
+- Base85 representa el paquete con menos caracteres que Base64.
 - Cada operación usa sal y nonce nuevos, así que la misma frase produce
   resultados diferentes.
 - La contraseña nunca se guarda en el resultado ni en el repositorio.
@@ -82,4 +103,3 @@ GitHub Actions ejecuta las pruebas en Windows y Linux. Cada etiqueta `v*` genera
 y publica automáticamente el ejecutable de Windows junto con su SHA-256.
 
 Consulta [SECURITY.md](SECURITY.md) antes de añadir funciones nuevas.
-

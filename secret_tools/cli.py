@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+from .compact import compact_text, expand_text
 from .crypto import decrypt_text, encrypt_text
 from .errors import ToolError
 from .integrity import SUPPORTED_ALGORITHMS, hash_file, verify_file_hash
@@ -51,13 +52,51 @@ def _encrypt_interactive(text: str | None = None) -> None:
     token = encrypt_text(plaintext, _read_new_passphrase())
     print("\nTexto cifrado:\n")
     print(token)
+    print()
+    _show_compaction(len(plaintext), len(token))
 
 
 def _decrypt_interactive(value: str | None = None) -> None:
-    token = value if value is not None else input("Pega el texto S4S1: ")
+    token = value if value is not None else input("Pega el texto S4S1/S4S2: ")
     plaintext = decrypt_text(token, _read_passphrase())
     print("\nTexto original:\n")
     print(plaintext)
+
+
+def _show_compaction(original_length: int, compact_length: int) -> None:
+    difference = original_length - compact_length
+    if difference > 0:
+        percentage = difference / original_length * 100
+        print(
+            f"Longitud: {original_length} -> {compact_length} caracteres "
+            f"({difference} menos, {percentage:.1f}% de reducción)."
+        )
+    elif difference == 0:
+        print(f"Longitud: {original_length} caracteres; no hubo ahorro.")
+    else:
+        print(
+            f"Longitud: {original_length} -> {compact_length} caracteres "
+            f"({-difference} más; el contenido no es compresible)."
+        )
+
+
+def _compact_interactive(text: str | None = None) -> None:
+    plaintext = text if text is not None else input("Texto a comprimir y codificar: ")
+    token = compact_text(plaintext)
+    print("\nTexto compacto CZ1:\n")
+    print(token)
+    print()
+    _show_compaction(len(plaintext), len(token))
+    print("CZ1 comprime, pero NO cifra ni oculta el contenido.")
+
+
+def _expand_interactive(value: str | None = None) -> None:
+    token = value if value is not None else input("Pega el texto CZ1: ")
+    plaintext = expand_text(token)
+    print("\nTexto restaurado:\n")
+    print(plaintext)
+    print()
+    _show_compaction(len(plaintext), len(token.strip()))
 
 
 def _generate_password_interactive(
@@ -158,8 +197,8 @@ def _inspect_url_interactive(url: str | None = None) -> None:
 def build_registry() -> ToolRegistry:
     registry = ToolRegistry()
     tools = (
-        Tool("1", "Cifrar texto", "Convierte una frase en un secreto S4S1.", _encrypt_interactive),
-        Tool("2", "Descifrar texto", "Recupera un secreto S4S1 con su contraseña.", _decrypt_interactive),
+        Tool("1", "Cifrar texto", "Convierte una frase en un secreto compacto S4S2.", _encrypt_interactive),
+        Tool("2", "Descifrar texto", "Recupera secretos S4S1 o S4S2.", _decrypt_interactive),
         Tool("3", "Generar contraseña", "Crea una contraseña con aleatoriedad criptográfica.", _generate_password_interactive),
         Tool("4", "Evaluar contraseña", "Estima fortaleza localmente con zxcvbn.", _analyze_password_interactive),
         Tool("5", "Calcular hash", "Obtiene SHA-256, SHA-512 o BLAKE2b de un archivo.", _hash_file_interactive),
@@ -167,6 +206,8 @@ def build_registry() -> ToolRegistry:
         Tool("7", "Código TOTP", "Crea secretos o genera códigos 2FA compatibles.", _totp_interactive),
         Tool("8", "Buscar secretos", "Detecta credenciales expuestas sin mostrar sus valores.", _scan_secrets_interactive),
         Tool("9", "Analizar URL", "Busca señales sospechosas sin abrir la dirección.", _inspect_url_interactive),
+        Tool("10", "Comprimir + codificar", "Reduce texto repetitivo con DEFLATE y Base85.", _compact_interactive),
+        Tool("11", "Decodificar + expandir", "Restaura exactamente un texto compacto CZ1.", _expand_interactive),
     )
     for tool in tools:
         registry.register(tool)
@@ -214,7 +255,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     decrypt_parser = subparsers.add_parser("decrypt", help="Descifra un token S4S1.")
-    decrypt_parser.add_argument("--value", help="Token S4S1 que se desea descifrar.")
+    decrypt_parser.add_argument(
+        "--value",
+        help="Token S4S1/S4S2 directo; puede requerir comillas y quedar en el historial.",
+    )
 
     password_parser = subparsers.add_parser(
         "generate-password", help="Genera una contraseña segura."
@@ -241,6 +285,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
     url_parser = subparsers.add_parser("inspect-url", help="Analiza una URL sin visitarla.")
     url_parser.add_argument("--url")
+
+    compact_parser = subparsers.add_parser(
+        "compact", help="Comprime texto y lo codifica como CZ1/Base85."
+    )
+    compact_parser.add_argument(
+        "--text",
+        help="Texto directo (puede quedar guardado en el historial de la terminal).",
+    )
+
+    expand_parser = subparsers.add_parser(
+        "expand", help="Restaura un texto compacto CZ1."
+    )
+    expand_parser.add_argument(
+        "--value",
+        help="Token CZ1 directo; puede requerir comillas y quedar en el historial.",
+    )
 
     subparsers.add_parser("list", help="Muestra las herramientas disponibles.")
     return parser
@@ -272,6 +332,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1 if _scan_secrets_interactive(args.path).findings else 0
         elif args.command == "inspect-url":
             _inspect_url_interactive(args.url)
+        elif args.command == "compact":
+            _compact_interactive(args.text)
+        elif args.command == "expand":
+            _expand_interactive(args.value)
         elif args.command == "list":
             _show_tools(registry)
         return 0
@@ -285,4 +349,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

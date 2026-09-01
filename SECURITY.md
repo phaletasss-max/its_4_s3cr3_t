@@ -10,6 +10,8 @@ persistencia, evasión ni escaneo de sistemas remotos.
 - Las contraseñas y secretos TOTP se solicitan con entrada oculta.
 - El escáner reporta archivo, línea y tipo, pero nunca imprime la credencial.
 - No guardes contraseñas, semillas TOTP o archivos `.secret` en Git.
+- `CZ1` solo comprime y codifica: no ofrece confidencialidad. Usa `S4S2` para
+  ocultar contenido con contraseña.
 
 El escáner y el analizador de URLs son heurísticos: pueden tener falsos positivos
 y no sustituyen una auditoría profesional. Un resultado sin hallazgos no prueba
@@ -20,4 +22,3 @@ que un archivo o enlace sea seguro.
 No publiques credenciales ni pruebas con datos reales en un issue. Reporta el
 problema al propietario del repositorio por un canal privado y proporciona un
 caso mínimo que use valores ficticios.
-
