@@ -16,10 +16,10 @@ El menú contiene todas las herramientas y siempre regresa al inicio al terminar
 o cancelar una operación:
 
 1. **Proteger o modernizar texto:** comprime y cifra texto original en `S4S2`.
-   También acepta `S4S1` o `CZ1` y los convierte a `S4S2` en un solo flujo.
-2. **Recuperar texto:** detecta y abre `S4S1`, `S4S2` o `CZ1`; no necesitas
-   elegir entre descifrar y expandir.
-3. **Compactar sin contraseña:** crea `CZ1` cuando solo importa reducir longitud.
+   También acepta `S4S1`, `CZ1` o `CZ2` y los convierte en un solo flujo.
+2. **Recuperar texto:** detecta y abre `S4S1`, `S4S2`, `CZ1` o `CZ2`; no
+   necesitas elegir entre descifrar y expandir.
+3. **Compactar sin contraseña:** elige `CZ1` o `CZ2` según cuál sea más corto.
 4. Generar y evaluar contraseñas.
 5. Crear secretos o generar códigos TOTP/2FA.
 6. Calcular y verificar hashes SHA-256, SHA-512 y BLAKE2b.
@@ -72,22 +72,25 @@ en automatizaciones defensivas.
 
 ## Compresión y longitud
 
-`compact` comprime el texto con DEFLATE y codifica el resultado en Base85. La
-salida comienza con `CZ1.` y puede copiarse como una sola línea. La aplicación
-muestra la longitud inicial, final y el porcentaje ahorrado.
+`compact` compara dos estrategias y conserva la más corta: `CZ1` usa DEFLATE;
+`CZ2` empaqueta códigos `CTF{...}` con 5 o 6 bits por símbolo. Ambos representan
+el resultado con Base85 en una sola línea. La aplicación muestra la longitud
+inicial, final y el porcentaje ahorrado.
 
 Base85 puede incluir símbolos especiales de terminal. Para restaurar o descifrar,
 abre `python run.py`, selecciona **Recuperar texto** y pega cualquier token
-`S4S1`, `S4S2` o `CZ1`; el formato se detecta automáticamente.
+`S4S1`, `S4S2`, `CZ1` o `CZ2`; el formato se detecta automáticamente.
 
 La reducción depende del contenido: 230 caracteres repetitivos pueden quedar en
 menos de 50, mientras que datos aleatorios o ya comprimidos pueden crecer. No
 existe una forma sin pérdida de garantizar que todo texto de 201 caracteres se
-reduzca a 50 o 150. `CZ1` **no cifra**; cualquiera puede restaurar su contenido.
+reduzca a 50 o 150. `CZ1` y `CZ2` **no cifran ni autentican**; cualquiera puede
+restaurarlos o modificarlos. Usa `S4S2` cuando necesites confidencialidad e
+integridad frente a cambios intencionales.
 
 No pegues un token `S4S1` o `S4S2` en **Compactar sin contraseña**: el cifrado
 elimina los patrones repetitivos que permiten comprimir. El menú lo detecta y,
-en lugar de crear un `CZ1` más largo, explica cómo migrarlo con la opción 1.
+en lugar de crear otro token más largo, explica cómo migrarlo con la opción 1.
 
 ## Diseño de seguridad del cifrado
 
@@ -98,6 +101,9 @@ anteriores, pero la criptografía no se reinventa:
 - `AES-256-GCM` cifra y autentica el contenido.
 - DEFLATE comprime antes de cifrar solo cuando realmente reduce el tamaño; no
   debes ejecutar `compact` antes de proteger un texto.
+- Los códigos `CTF{...}` formados por letras, números, `_` y `-` usan
+  automáticamente un empaquetado reversible de 5 o 6 bits por símbolo antes del
+  cifrado. Si no aplica o no ahorra espacio, se conserva el método más corto.
 - Base85 representa el paquete con menos caracteres que Base64.
 - Cada operación usa sal y nonce nuevos, así que la misma frase produce
   resultados diferentes.
@@ -106,6 +112,14 @@ anteriores, pero la criptografía no se reinventa:
 No existe recuperación de contraseña. Conserva el resultado y la contraseña por
 separado. Para información crítica o compartida, usa un gestor de contraseñas
 auditado.
+
+SHA-256 no se usa como compresión: una huella SHA es irreversible y sus bytes
+parecen aleatorios. Para verificar integridad, AES-GCM ya autentica cada token;
+para recuperar el contenido, debe conservarse el cifrado reversible.
+
+Los `S4S2` que usen el nuevo empaquetado CTF requieren la versión `0.4.0` o
+posterior para abrirse. Esta versión sigue abriendo todos los `S4S1`, `S4S2` y
+`CZ1` creados anteriormente.
 
 ## Desarrollo y pruebas
 

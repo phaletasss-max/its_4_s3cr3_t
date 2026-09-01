@@ -75,6 +75,18 @@ class InteractiveCliTests(unittest.TestCase):
         self.assertIn("Texto recuperado desde CZ1", stdout.getvalue())
         self.assertIn("texto repetido", stdout.getvalue())
 
+    def test_recover_auto_detects_cz2_without_password(self) -> None:
+        original = "CTF{synthetic_0134_code}"
+        token = compact_text(original)
+        stdout = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout):
+            _recover_interactive(token)
+
+        self.assertTrue(token.startswith("CZ2."))
+        self.assertIn("Texto recuperado desde CZ2", stdout.getvalue())
+        self.assertIn(original, stdout.getvalue())
+
     def test_recover_auto_detects_encrypted_text(self) -> None:
         token = encrypt_text("mi secreto", "contraseña segura")
         stdout = io.StringIO()

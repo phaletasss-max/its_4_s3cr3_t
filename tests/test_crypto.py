@@ -1,3 +1,4 @@
+import random
 import unittest
 
 from secret_tools.crypto import SecretCipherError, decrypt_text, encrypt_text
@@ -49,6 +50,25 @@ class SecretCipherTests(unittest.TestCase):
         token = encrypt_text(original, "contraseña segura")
 
         self.assertLess(len(token), 150)
+        self.assertEqual(decrypt_text(token, "contraseña segura"), original)
+
+    def test_ctf_code_uses_reversible_packing_below_150_characters(self) -> None:
+        randomizer = random.Random(20260901)
+        body = "".join(
+            randomizer.choice("abcdefghijklmnopqrstuvwxyz_0134-") for _ in range(76)
+        )
+        original = f"CTF{{{body}}}"
+        token = encrypt_text(original, "contraseña segura")
+
+        self.assertEqual(len(original), 81)
+        self.assertEqual(len(token), 132)
+        self.assertLess(len(token), 150)
+        self.assertEqual(decrypt_text(token, "contraseña segura"), original)
+
+    def test_ctf_packing_falls_back_for_unsupported_characters(self) -> None:
+        original = "CTF{texto.con-punto}"
+        token = encrypt_text(original, "contraseña segura")
+
         self.assertEqual(decrypt_text(token, "contraseña segura"), original)
 
     def test_legacy_s4s1_token_remains_compatible(self) -> None:

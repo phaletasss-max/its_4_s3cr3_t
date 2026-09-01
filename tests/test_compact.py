@@ -1,4 +1,5 @@
 import base64
+import random
 import unittest
 import zlib
 
@@ -21,6 +22,19 @@ class CompactTextTests(unittest.TestCase):
         self.assertLess(len(token), 50)
         self.assertEqual(expand_text(token), original)
 
+    def test_ctf_code_uses_cz2_and_is_shorter(self) -> None:
+        randomizer = random.Random(20260901)
+        body = "".join(
+            randomizer.choice("abcdefghijklmnopqrstuvwxyz_0134-") for _ in range(76)
+        )
+        original = f"CTF{{{body}}}"
+        token = compact_text(original)
+
+        self.assertTrue(token.startswith("CZ2."))
+        self.assertEqual(len(token), 67)
+        self.assertLess(len(token), len(original))
+        self.assertEqual(expand_text(token), original)
+
     def test_corrupted_and_extra_data_are_rejected(self) -> None:
         token = compact_text("contenido repetido " * 20)
         modified = token[:-1] + ("0" if token[-1] != "0" else "1")
@@ -34,7 +48,7 @@ class CompactTextTests(unittest.TestCase):
     def test_invalid_or_empty_values_are_rejected(self) -> None:
         with self.assertRaises(CompactTextError):
             compact_text("")
-        for token in ("", "otro-formato", "CZ1.", "CZ1.000"):
+        for token in ("", "otro-formato", "CZ1.", "CZ1.000", "CZ2.", "CZ2.000"):
             with self.subTest(token=token), self.assertRaises(CompactTextError):
                 expand_text(token)
 
@@ -48,4 +62,3 @@ class CompactTextTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

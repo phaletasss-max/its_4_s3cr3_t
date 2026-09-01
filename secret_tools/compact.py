@@ -5,9 +5,11 @@ from __future__ import annotations
 import base64
 import zlib
 
+from .ctf_packing import PackedCtfError, pack_ctf_text, unpack_ctf_text
 from .errors import ToolError
 
-_PREFIX = "CZ1."
+_PREFIX_ZLIB = "CZ1."
+_PREFIX_CTF = "CZ2."
 _MAX_INPUT_BYTES = 5 * 1024 * 1024
 _MAX_ENCODED_CHARACTERS = 7 * 1024 * 1024
 
@@ -17,7 +19,7 @@ class CompactTextError(ToolError):
 
 
 def compact_text(text: str) -> str:
-    """Comprime UTF-8 con DEFLATE y lo representa con Base85."""
+    """Elige el formato reversible más corto entre CZ1 y CZ2."""
     if not isinstance(text, str) or not text:
         raise CompactTextError("El texto a compactar no puede estar vacío.")
 
@@ -26,8 +28,13 @@ def compact_text(text: str) -> str:
         raise CompactTextError("El texto supera el máximo permitido de 5 MiB.")
 
     compressed = zlib.compress(payload, level=9)
-    encoded = base64.b85encode(compressed).decode("ascii")
-    return f"{_PREFIX}{encoded}"
+    zlib_token = f"{_PREFIX_ZLIB}{base64.b85encode(compressed).decode('ascii')}"
+
+    packed_ctf = pack_ctf_text(text)
+    if packed_ctf is None:
+        return zlib_token
+    ctf_token = f"{_PREFIX_CTF}{base64.b85encode(packed_ctf).decode('ascii')}"
+    return min(zlib_token, ctf_token, key=len)
 
 
 def _decompress_limited(compressed: bytes) -> bytes:
@@ -48,27 +55,36 @@ def _decompress_limited(compressed: bytes) -> bytes:
 
 
 def expand_text(token: str) -> str:
-    """Restaura exactamente el texto de un token CZ1."""
+    """Restaura exactamente el texto de un token CZ1 o CZ2."""
     if not isinstance(token, str):
         raise CompactTextError("El texto compacto no tiene un formato válido.")
 
     compact = token.strip()
-    if not compact.startswith(_PREFIX):
-        raise CompactTextError("El texto no pertenece al formato CZ1.")
+    if compact.startswith(_PREFIX_ZLIB):
+        prefix = _PREFIX_ZLIB
+    elif compact.startswith(_PREFIX_CTF):
+        prefix = _PREFIX_CTF
+    else:
+        raise CompactTextError("El texto no pertenece a un formato CZ1/CZ2 compatible.")
 
-    encoded = compact[len(_PREFIX) :]
+    encoded = compact[len(prefix) :]
     if not encoded:
         raise CompactTextError("El texto compacto está incompleto.")
     if len(encoded) > _MAX_ENCODED_CHARACTERS:
         raise CompactTextError("El texto compacto supera el tamaño permitido.")
 
     try:
-        compressed = base64.b85decode(encoded.encode("ascii"))
+        decoded = base64.b85decode(encoded.encode("ascii"))
     except (UnicodeEncodeError, ValueError) as exc:
         raise CompactTextError("El texto compacto no tiene una codificación válida.") from exc
 
+    if prefix == _PREFIX_CTF:
+        try:
+            return unpack_ctf_text(decoded)
+        except PackedCtfError as exc:
+            raise CompactTextError(str(exc)) from exc
+
     try:
-        return _decompress_limited(compressed).decode("utf-8")
+        return _decompress_limited(decoded).decode("utf-8")
     except UnicodeDecodeError as exc:
         raise CompactTextError("El contenido restaurado no es texto UTF-8 válido.") from exc
-

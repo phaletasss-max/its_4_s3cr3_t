@@ -51,7 +51,7 @@ def _encrypt_interactive(text: str | None = None) -> None:
     source = (
         text
         if text is not None
-        else input("Texto original o token S4S1/CZ1 que quieres proteger: ")
+        else input("Texto original o token S4S1/CZ1/CZ2 que quieres proteger: ")
     )
     compact_source = source.strip()
     migrated_from: str | None = None
@@ -67,9 +67,9 @@ def _encrypt_interactive(text: str | None = None) -> None:
             _read_passphrase("Contraseña actual del token S4S1: "),
         )
         migrated_from = "S4S1"
-    elif compact_source.startswith("CZ1."):
+    elif compact_source.startswith(("CZ1.", "CZ2.")):
         plaintext = expand_text(compact_source)
-        migrated_from = "CZ1"
+        migrated_from = compact_source[:3]
     else:
         plaintext = source
 
@@ -97,18 +97,18 @@ def _recover_interactive(value: str | None = None) -> None:
     token = (
         value
         if value is not None
-        else input("Pega el texto protegido o compacto (S4S1, S4S2 o CZ1): ")
+        else input("Pega el texto protegido o compacto (S4S1, S4S2, CZ1 o CZ2): ")
     ).strip()
 
-    if token.startswith("CZ1."):
+    if token.startswith(("CZ1.", "CZ2.")):
         plaintext = expand_text(token)
-        source = "CZ1"
+        source = token[:3]
     elif token.startswith(("S4S1.", "S4S2.")):
         plaintext = decrypt_text(token, _read_passphrase())
         source = token[:4]
     else:
         raise ToolError(
-            "Formato desconocido. El texto debe comenzar con S4S1., S4S2. o CZ1."
+            "Formato desconocido. Debe comenzar con S4S1., S4S2., CZ1. o CZ2."
         )
 
     print(f"\nTexto recuperado desde {source}:\n")
@@ -146,15 +146,15 @@ def _compact_interactive(text: str | None = None) -> None:
             "Comprimir el token cifrado solo lo haría más largo."
         )
     token = compact_text(plaintext)
-    print("\nTexto compacto CZ1:\n")
+    print(f"\nTexto compacto {token[:3]}:\n")
     print(token)
     print()
     _show_compaction(len(plaintext), len(token))
-    print("CZ1 comprime, pero NO cifra ni oculta el contenido.")
+    print(f"{token[:3]} comprime, pero NO cifra ni oculta el contenido.")
 
 
 def _expand_interactive(value: str | None = None) -> None:
-    token = value if value is not None else input("Pega el texto CZ1: ")
+    token = value if value is not None else input("Pega el texto CZ1/CZ2: ")
     plaintext = expand_text(token)
     print("\nTexto restaurado:\n")
     print(plaintext)
@@ -263,21 +263,21 @@ def build_registry() -> ToolRegistry:
         Tool(
             "1",
             "Proteger o modernizar texto",
-            "Cifra texto o migra S4S1/CZ1 directamente a S4S2.",
+            "Cifra texto o migra S4S1/CZ1/CZ2 directamente a S4S2.",
             _encrypt_interactive,
             "Texto y secretos",
         ),
         Tool(
             "2",
             "Recuperar texto",
-            "Detecta y abre S4S1, S4S2 o CZ1 automáticamente.",
+            "Detecta y abre S4S1, S4S2, CZ1 o CZ2 automáticamente.",
             _recover_interactive,
             "Texto y secretos",
         ),
         Tool(
             "3",
             "Compactar sin contraseña",
-            "Crea CZ1; reduce texto, pero no lo cifra.",
+            "Crea CZ1/CZ2; reduce texto, pero no lo cifra.",
             _compact_interactive,
             "Texto y secretos",
         ),
@@ -419,7 +419,7 @@ def _build_parser() -> argparse.ArgumentParser:
     url_parser.add_argument("--url")
 
     compact_parser = subparsers.add_parser(
-        "compact", help="Comprime texto y lo codifica como CZ1/Base85."
+        "compact", help="Comprime texto y elige automáticamente CZ1 o CZ2."
     )
     compact_parser.add_argument(
         "--text",
@@ -427,11 +427,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     expand_parser = subparsers.add_parser(
-        "expand", help="Restaura un texto compacto CZ1."
+        "expand", help="Restaura un texto compacto CZ1 o CZ2."
     )
     expand_parser.add_argument(
         "--value",
-        help="Token CZ1 directo; puede requerir comillas y quedar en el historial.",
+        help="Token CZ1/CZ2 directo; puede requerir comillas y quedar en el historial.",
     )
 
     subparsers.add_parser("list", help="Muestra las herramientas disponibles.")

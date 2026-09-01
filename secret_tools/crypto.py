@@ -17,6 +17,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
+from .ctf_packing import PackedCtfError, pack_ctf_text, unpack_ctf_text
 from .errors import ToolError
 
 _PREFIX_V1 = "S4S1."
@@ -28,6 +29,7 @@ _KDF_SCRYPT = 1
 _CIPHER_AES_GCM = 1
 _COMPRESSION_NONE = 0
 _COMPRESSION_ZLIB = 1
+_COMPRESSION_PACKED_CTF = 2
 _SALT_SIZE = 16
 _NONCE_SIZE = 12
 _KEY_SIZE = 32
@@ -102,11 +104,29 @@ def _decode_token(token: str) -> tuple[int, bytes]:
     return version, packet
 
 
+def _pack_ctf_if_supported(plaintext: bytes) -> bytes | None:
+    try:
+        text = plaintext.decode("ascii")
+    except UnicodeDecodeError:
+        return None
+    return pack_ctf_text(text)
+
+
 def _compress_if_useful(plaintext: bytes) -> tuple[int, bytes]:
+    best_compression = _COMPRESSION_NONE
+    best_payload = plaintext
+
     compressed = zlib.compress(plaintext, level=9)
-    if len(compressed) < len(plaintext):
-        return _COMPRESSION_ZLIB, compressed
-    return _COMPRESSION_NONE, plaintext
+    if len(compressed) < len(best_payload):
+        best_compression = _COMPRESSION_ZLIB
+        best_payload = compressed
+
+    packed_ctf = _pack_ctf_if_supported(plaintext)
+    if packed_ctf is not None and len(packed_ctf) < len(best_payload):
+        best_compression = _COMPRESSION_PACKED_CTF
+        best_payload = packed_ctf
+
+    return best_compression, best_payload
 
 
 def _decompress_limited(compressed: bytes) -> bytes:
@@ -185,13 +205,22 @@ def _decrypt_v2(packet: bytes, password_bytes: bytes) -> bytes:
         raise SecretCipherError("La versión del texto cifrado no es compatible.")
     if kdf_id != _KDF_SCRYPT or cipher_id != _CIPHER_AES_GCM:
         raise SecretCipherError("El algoritmo indicado no es compatible.")
-    if compression_id not in {_COMPRESSION_NONE, _COMPRESSION_ZLIB}:
+    if compression_id not in {
+        _COMPRESSION_NONE,
+        _COMPRESSION_ZLIB,
+        _COMPRESSION_PACKED_CTF,
+    }:
         raise SecretCipherError("La compresión indicada no es compatible.")
 
     key = _derive_key(password_bytes, salt)
     payload = AESGCM(key).decrypt(nonce, ciphertext, header)
     if compression_id == _COMPRESSION_ZLIB:
         return _decompress_limited(payload)
+    if compression_id == _COMPRESSION_PACKED_CTF:
+        try:
+            return unpack_ctf_text(payload).encode("ascii")
+        except PackedCtfError as exc:
+            raise SecretCipherError(str(exc)) from exc
     if len(payload) > _MAX_PLAINTEXT_BYTES:
         raise SecretCipherError("El contenido descifrado supera el tamaño permitido.")
     return payload
