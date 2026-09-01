@@ -4,19 +4,26 @@ Caja defensiva y extensible de pequeñas herramientas personales de
 ciberseguridad. Todo se ejecuta localmente desde Python y las funciones que
 reciben secretos no los envían por internet.
 
-## Herramientas incluidas
+## Una sola entrada: `run.py`
 
-1. Cifrado compacto autenticado en formato `S4S2`, compatible con `S4S1`.
-2. Descifrado y detección de contraseñas incorrectas o datos manipulados.
-3. Generador criptográfico de contraseñas.
-4. Evaluación local de fortaleza mediante `zxcvbn`.
-5. Cálculo de hashes SHA-256, SHA-512 y BLAKE2b.
-6. Verificación de integridad contra una huella conocida.
-7. Creación de secretos y generación de códigos TOTP/2FA con `PyOTP`.
-8. Escáner local de credenciales expuestas que nunca imprime el secreto.
-9. Análisis estático de URLs sospechosas sin visitar el destino.
-10. Compresión DEFLATE + codificación Base85 en formato `CZ1`.
-11. Restauración exacta de textos compactos `CZ1`.
+Ejecuta únicamente:
+
+```powershell
+python run.py
+```
+
+El menú contiene todas las herramientas y siempre regresa al inicio al terminar
+o cancelar una operación:
+
+1. **Proteger texto:** comprime y cifra en `S4S2` en un solo paso.
+2. **Recuperar texto:** detecta y abre `S4S1`, `S4S2` o `CZ1`; no necesitas
+   elegir entre descifrar y expandir.
+3. **Compactar sin contraseña:** crea `CZ1` cuando solo importa reducir longitud.
+4. Generar y evaluar contraseñas.
+5. Crear secretos o generar códigos TOTP/2FA.
+6. Calcular y verificar hashes SHA-256, SHA-512 y BLAKE2b.
+7. Buscar credenciales expuestas sin mostrar su valor.
+8. Analizar señales sospechosas de una URL sin visitarla.
 
 ## Ejecutable para Windows
 
@@ -37,7 +44,10 @@ python run.py
 
 En Linux o macOS, activa el entorno con `source .venv/bin/activate`.
 
-## Comandos directos
+## Automatización avanzada (opcional)
+
+No necesitas estos comandos para usar la aplicación: todas las opciones están en
+`python run.py`. Se conservan para scripts y automatizaciones:
 
 ```text
 python run.py encrypt
@@ -66,8 +76,8 @@ salida comienza con `CZ1.` y puede copiarse como una sola línea. La aplicación
 muestra la longitud inicial, final y el porcentaje ahorrado.
 
 Base85 puede incluir símbolos especiales de terminal. Para restaurar o descifrar,
-es más seguro abrir el menú con `python run.py` y pegar allí el token, en lugar
-de pasarlo como argumento.
+abre `python run.py`, selecciona **Recuperar texto** y pega cualquier token
+`S4S1`, `S4S2` o `CZ1`; el formato se detecta automáticamente.
 
 La reducción depende del contenido: 230 caracteres repetitivos pueden quedar en
 menos de 50, mientras que datos aleatorios o ya comprimidos pueden crecer. No
@@ -81,7 +91,8 @@ anteriores, pero la criptografía no se reinventa:
 
 - `scrypt` deriva una clave desde tu contraseña usando una sal aleatoria.
 - `AES-256-GCM` cifra y autentica el contenido.
-- DEFLATE comprime antes de cifrar solo cuando realmente reduce el tamaño.
+- DEFLATE comprime antes de cifrar solo cuando realmente reduce el tamaño; no
+  debes ejecutar `compact` antes de proteger un texto.
 - Base85 representa el paquete con menos caracteres que Base64.
 - Cada operación usa sal y nonce nuevos, así que la misma frase produce
   resultados diferentes.

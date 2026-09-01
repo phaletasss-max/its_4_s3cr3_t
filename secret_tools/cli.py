@@ -48,9 +48,9 @@ def _ask_path(prompt: str) -> str:
 
 
 def _encrypt_interactive(text: str | None = None) -> None:
-    plaintext = text if text is not None else input("Texto o frase a cifrar: ")
+    plaintext = text if text is not None else input("Texto o frase que quieres proteger: ")
     token = encrypt_text(plaintext, _read_new_passphrase())
-    print("\nTexto cifrado:\n")
+    print("\nTexto protegido S4S2 (comprimido y cifrado automáticamente):\n")
     print(token)
     print()
     _show_compaction(len(plaintext), len(token))
@@ -60,6 +60,28 @@ def _decrypt_interactive(value: str | None = None) -> None:
     token = value if value is not None else input("Pega el texto S4S1/S4S2: ")
     plaintext = decrypt_text(token, _read_passphrase())
     print("\nTexto original:\n")
+    print(plaintext)
+
+
+def _recover_interactive(value: str | None = None) -> None:
+    token = (
+        value
+        if value is not None
+        else input("Pega el texto protegido o compacto (S4S1, S4S2 o CZ1): ")
+    ).strip()
+
+    if token.startswith("CZ1."):
+        plaintext = expand_text(token)
+        source = "CZ1"
+    elif token.startswith(("S4S1.", "S4S2.")):
+        plaintext = decrypt_text(token, _read_passphrase())
+        source = token[:4]
+    else:
+        raise ToolError(
+            "Formato desconocido. El texto debe comenzar con S4S1., S4S2. o CZ1."
+        )
+
+    print(f"\nTexto recuperado desde {source}:\n")
     print(plaintext)
 
 
@@ -197,17 +219,76 @@ def _inspect_url_interactive(url: str | None = None) -> None:
 def build_registry() -> ToolRegistry:
     registry = ToolRegistry()
     tools = (
-        Tool("1", "Cifrar texto", "Convierte una frase en un secreto compacto S4S2.", _encrypt_interactive),
-        Tool("2", "Descifrar texto", "Recupera secretos S4S1 o S4S2.", _decrypt_interactive),
-        Tool("3", "Generar contraseña", "Crea una contraseña con aleatoriedad criptográfica.", _generate_password_interactive),
-        Tool("4", "Evaluar contraseña", "Estima fortaleza localmente con zxcvbn.", _analyze_password_interactive),
-        Tool("5", "Calcular hash", "Obtiene SHA-256, SHA-512 o BLAKE2b de un archivo.", _hash_file_interactive),
-        Tool("6", "Verificar hash", "Compara la integridad de un archivo.", _verify_hash_interactive),
-        Tool("7", "Código TOTP", "Crea secretos o genera códigos 2FA compatibles.", _totp_interactive),
-        Tool("8", "Buscar secretos", "Detecta credenciales expuestas sin mostrar sus valores.", _scan_secrets_interactive),
-        Tool("9", "Analizar URL", "Busca señales sospechosas sin abrir la dirección.", _inspect_url_interactive),
-        Tool("10", "Comprimir + codificar", "Reduce texto repetitivo con DEFLATE y Base85.", _compact_interactive),
-        Tool("11", "Decodificar + expandir", "Restaura exactamente un texto compacto CZ1.", _expand_interactive),
+        Tool(
+            "1",
+            "Proteger texto",
+            "Comprime y cifra automáticamente en un secreto S4S2.",
+            _encrypt_interactive,
+            "Texto y secretos",
+        ),
+        Tool(
+            "2",
+            "Recuperar texto",
+            "Detecta y abre S4S1, S4S2 o CZ1 automáticamente.",
+            _recover_interactive,
+            "Texto y secretos",
+        ),
+        Tool(
+            "3",
+            "Compactar sin contraseña",
+            "Crea CZ1; reduce texto, pero no lo cifra.",
+            _compact_interactive,
+            "Texto y secretos",
+        ),
+        Tool(
+            "4",
+            "Generar contraseña",
+            "Crea una contraseña con aleatoriedad criptográfica.",
+            _generate_password_interactive,
+            "Contraseñas y 2FA",
+        ),
+        Tool(
+            "5",
+            "Evaluar contraseña",
+            "Estima fortaleza localmente con zxcvbn.",
+            _analyze_password_interactive,
+            "Contraseñas y 2FA",
+        ),
+        Tool(
+            "6",
+            "Código TOTP",
+            "Crea secretos o genera códigos 2FA compatibles.",
+            _totp_interactive,
+            "Contraseñas y 2FA",
+        ),
+        Tool(
+            "7",
+            "Calcular hash",
+            "Obtiene SHA-256, SHA-512 o BLAKE2b de un archivo.",
+            _hash_file_interactive,
+            "Archivos y análisis",
+        ),
+        Tool(
+            "8",
+            "Verificar hash",
+            "Compara la integridad de un archivo.",
+            _verify_hash_interactive,
+            "Archivos y análisis",
+        ),
+        Tool(
+            "9",
+            "Buscar secretos",
+            "Detecta credenciales expuestas sin mostrar sus valores.",
+            _scan_secrets_interactive,
+            "Archivos y análisis",
+        ),
+        Tool(
+            "10",
+            "Analizar URL",
+            "Busca señales sospechosas sin abrir la dirección.",
+            _inspect_url_interactive,
+            "Archivos y análisis",
+        ),
     )
     for tool in tools:
         registry.register(tool)
@@ -215,12 +296,20 @@ def build_registry() -> ToolRegistry:
 
 
 def _show_tools(registry: ToolRegistry) -> None:
+    previous_category: str | None = None
     for tool in registry.all():
+        if tool.category != previous_category:
+            if previous_category is not None:
+                print()
+            print(f"{tool.category}:")
+            previous_category = tool.category
         print(f"{tool.key}. {tool.name} — {tool.description}")
+    print()
 
 
 def _run_menu(registry: ToolRegistry) -> int:
     print("\nits_4_s3cr3_t — caja defensiva de ciberseguridad\n")
+    print("Todo está aquí: elige una opción; no necesitas ejecutar subcomandos.\n")
     while True:
         _show_tools(registry)
         print("0. Salir")
@@ -239,6 +328,8 @@ def _run_menu(registry: ToolRegistry) -> int:
             print()
         except ToolError as exc:
             print(f"\nError: {exc}\n", file=sys.stderr)
+        except (EOFError, KeyboardInterrupt):
+            print("\nOperación cancelada. Volviste al menú.\n", file=sys.stderr)
 
 
 def _build_parser() -> argparse.ArgumentParser:

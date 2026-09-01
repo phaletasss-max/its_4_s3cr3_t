@@ -12,6 +12,7 @@ class Tool:
     name: str
     description: str
     run: Callable[[], object]
+    category: str = "General"
 
 
 class ToolRegistry:
