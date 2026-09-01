@@ -33,8 +33,8 @@ def _read_new_passphrase() -> str:
     return password
 
 
-def _read_passphrase() -> str:
-    password = getpass.getpass("Contraseña secreta: ")
+def _read_passphrase(prompt: str = "Contraseña secreta: ") -> str:
+    password = getpass.getpass(prompt)
     if not password:
         raise ToolError("La contraseña no puede estar vacía.")
     return password
@@ -48,12 +48,42 @@ def _ask_path(prompt: str) -> str:
 
 
 def _encrypt_interactive(text: str | None = None) -> None:
-    plaintext = text if text is not None else input("Texto o frase que quieres proteger: ")
+    source = (
+        text
+        if text is not None
+        else input("Texto original o token S4S1/CZ1 que quieres proteger: ")
+    )
+    compact_source = source.strip()
+    migrated_from: str | None = None
+
+    if compact_source.startswith("S4S2."):
+        raise ToolError(
+            "Ese token ya es S4S2: ya intentó comprimir antes de cifrar y no ganará "
+            "nada al compactarlo otra vez."
+        )
+    if compact_source.startswith("S4S1."):
+        plaintext = decrypt_text(
+            compact_source,
+            _read_passphrase("Contraseña actual del token S4S1: "),
+        )
+        migrated_from = "S4S1"
+    elif compact_source.startswith("CZ1."):
+        plaintext = expand_text(compact_source)
+        migrated_from = "CZ1"
+    else:
+        plaintext = source
+
     token = encrypt_text(plaintext, _read_new_passphrase())
-    print("\nTexto protegido S4S2 (comprimido y cifrado automáticamente):\n")
+    if migrated_from:
+        print(
+            f"\n{migrated_from} convertido a S4S2 "
+            "(restaurado, comprimido y cifrado en un solo flujo):\n"
+        )
+    else:
+        print("\nTexto protegido S4S2 (comprimido y cifrado automáticamente):\n")
     print(token)
     print()
-    _show_compaction(len(plaintext), len(token))
+    _show_compaction(len(source), len(token))
 
 
 def _decrypt_interactive(value: str | None = None) -> None:
@@ -104,6 +134,17 @@ def _show_compaction(original_length: int, compact_length: int) -> None:
 
 def _compact_interactive(text: str | None = None) -> None:
     plaintext = text if text is not None else input("Texto a comprimir y codificar: ")
+    compact_source = plaintext.strip()
+    if compact_source.startswith("S4S1."):
+        raise ToolError(
+            "No se compactó: S4S1 ya está cifrado y no conserva patrones que DEFLATE "
+            "pueda reducir. Usa la opción 1 para migrarlo directamente a S4S2."
+        )
+    if compact_source.startswith("S4S2."):
+        raise ToolError(
+            "No se compactó: S4S2 ya comprime el texto original antes de cifrarlo. "
+            "Comprimir el token cifrado solo lo haría más largo."
+        )
     token = compact_text(plaintext)
     print("\nTexto compacto CZ1:\n")
     print(token)
@@ -221,8 +262,8 @@ def build_registry() -> ToolRegistry:
     tools = (
         Tool(
             "1",
-            "Proteger texto",
-            "Comprime y cifra automáticamente en un secreto S4S2.",
+            "Proteger o modernizar texto",
+            "Cifra texto o migra S4S1/CZ1 directamente a S4S2.",
             _encrypt_interactive,
             "Texto y secretos",
         ),

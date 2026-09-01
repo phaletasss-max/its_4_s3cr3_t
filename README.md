@@ -15,7 +15,8 @@ python run.py
 El menú contiene todas las herramientas y siempre regresa al inicio al terminar
 o cancelar una operación:
 
-1. **Proteger texto:** comprime y cifra en `S4S2` en un solo paso.
+1. **Proteger o modernizar texto:** comprime y cifra texto original en `S4S2`.
+   También acepta `S4S1` o `CZ1` y los convierte a `S4S2` en un solo flujo.
 2. **Recuperar texto:** detecta y abre `S4S1`, `S4S2` o `CZ1`; no necesitas
    elegir entre descifrar y expandir.
 3. **Compactar sin contraseña:** crea `CZ1` cuando solo importa reducir longitud.
@@ -83,6 +84,10 @@ La reducción depende del contenido: 230 caracteres repetitivos pueden quedar en
 menos de 50, mientras que datos aleatorios o ya comprimidos pueden crecer. No
 existe una forma sin pérdida de garantizar que todo texto de 201 caracteres se
 reduzca a 50 o 150. `CZ1` **no cifra**; cualquiera puede restaurar su contenido.
+
+No pegues un token `S4S1` o `S4S2` en **Compactar sin contraseña**: el cifrado
+elimina los patrones repetitivos que permiten comprimir. El menú lo detecta y,
+en lugar de crear un `CZ1` más largo, explica cómo migrarlo con la opción 1.
 
 ## Diseño de seguridad del cifrado
 
