@@ -1,0 +1,13 @@
+{
+  "name": "Kali Linux + Host Docker",
+  "image": "kalilinux/kali-rolling:latest",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "moby": false
+    }
+  },
+  "forwardPorts": [
+    8080
+  ],
+  "remoteUser": "root"
+}
