@@ -5,3 +5,7 @@
   },
   "remoteUser": "root"
 }
+cd /workspaces/its_4_s3cr3_t
+
+git status
+git push origin main
