@@ -1,7 +1,5 @@
 {
   "name": "Kali Linux",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
+  "image": "kalilinux/kali-rolling:latest",
   "remoteUser": "root"
 }
