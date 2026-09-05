@@ -1,5 +1,11 @@
 {
-  "name": "Kali Linux",
+  "name": "Kali Linux + Docker",
   "image": "kalilinux/kali-rolling:latest",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {}
+  },
+  "forwardPorts": [
+    8080
+  ],
   "remoteUser": "root"
 }
