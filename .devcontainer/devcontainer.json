@@ -1,0 +1,7 @@
+{
+  "name": "Kali Linux Codespace",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "remoteUser": "root"
+}
