@@ -3,7 +3,6 @@ FROM kalilinux/kali-rolling:latest
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt update && apt install -y \
-    kali-linux-headless \
     git \
     curl \
     wget \
@@ -20,9 +19,6 @@ RUN apt update && apt install -y \
     iputils-ping \
     traceroute \
     tcpdump \
-    file \
-    binutils \
-    unzip \
-    jq \
+    docker.io \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
